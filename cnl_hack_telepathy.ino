@@ -24,15 +24,15 @@
  */
 #define SSID        "ITC-guest"
 #define PASSWORD    "20setsuden11"
-#define HOST_NAME   "133.11.123.214"
-#define HOST_PORT   (7000)
+#define HOST_NAME   "133.11.123.249"
+#define HOST_PORT   (7001)
 
 /*
  * その他定数
  */
 #define BUFFER_SIZE 256
 #define TIME_INTERVAL 5000
-
+#define TIME_OUT 10
 /*
  * Gpsモジュール用の変数
  */
@@ -66,7 +66,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  
+  Serial.println(wifi.getIPStatus());
   loopForGps();
   
   loopForGeomag();
@@ -112,6 +112,15 @@ void setupWifi(){
     }
     
     Serial.print("setup end\r\n");
+
+    int count = 0;
+    while (!wifi.createTCP(HOST_NAME, HOST_PORT)) {
+        Serial.print("create tcp err\r\n");
+
+        if(count++ > TIME_OUT)
+          break;
+    }
+    Serial.print("create tcp ok\r\n");
 }
 
 void setupGeomag(){
@@ -145,7 +154,7 @@ void loopForGps(){
     getLine(buf);
     result = analyzeData(buf);
 
-    if(count++ > 1000)
+    if(count++ > TIME_OUT)
       break;
   } 
   
@@ -224,12 +233,12 @@ bool sendData(String data, const int timeout){
     uint8_t buffer[BUFFER_SIZE] = {0};
     bool result = false;
     
-    if (wifi.createTCP(HOST_NAME, HOST_PORT)) {
-        Serial.print("create tcp ok\r\n");
-    } else {
-        Serial.print("create tcp err\r\n");
-        return false;
-    }
+//    if (wifi.createTCP(HOST_NAME, HOST_PORT)) {
+//        Serial.print("create tcp ok\r\n");
+//    } else {
+//        Serial.print("create tcp err\r\n");
+//        return false;
+//    }
     
     char message[BUFFER_SIZE]; 
     
@@ -245,15 +254,21 @@ bool sendData(String data, const int timeout){
 //        Serial.print("]\r\n");
 //    }
     
-    if (wifi.releaseTCP()) {
-        Serial.print("release tcp ok\r\n");
-    } else {
-        Serial.print("release tcp err\r\n");
-    }
+//    if (wifi.releaseTCP()) {
+//        Serial.print("release tcp ok\r\n");
+//    } else {
+//        Serial.print("release tcp err\r\n");
+//    }
 
-    delay(500);
+//   while(!wifi.releaseTCP()){
+//      Serial.print("release tcp err\r\n");
+//      delay(100);
+//   }
+
+//   Serial.print("release tcp ok\r\n");
+   delay(500);
     
-    return result;
+   return result;
 }
  
 /*
