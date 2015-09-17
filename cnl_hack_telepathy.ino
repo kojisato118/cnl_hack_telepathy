@@ -30,14 +30,15 @@
 /* 
  * 振動モータ用の定数
  */
-#define VIBRATION1_PIN  2
+#define VIBRATION_TIME 5000
+const int vibrationPins[] = {2,3,4,5,6,7,8,9,10};
 
 /*
  * その他定数
  */
 #define BUFFER_SIZE 256
 #define TIME_INTERVAL 5000
-#define TIME_OUT 10
+#define TIME_OUT 1000
 /*
  * Gpsモジュール用の変数
  */
@@ -57,6 +58,7 @@ HMC5883L compass;
 // Record any errors that may occur in the compass.
 int error = 0;
 
+ 
 /***********************************************
  * Life Cycle
  ***********************************************/
@@ -72,11 +74,11 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   //Serial.println(wifi.getIPStatus());
-  analogWrite(VIBRATION1_PIN, 255*3.3/5);
+  //analogWrite(VIBRATION1_PIN, 255*3.3/5);
   loopForGps();
   
   loopForGeomag();
-  delay(TIME_INTERVAL);  
+  //delay(TIME_INTERVAL);  
 }
 
 /***********************************************
@@ -123,7 +125,7 @@ void setupWifi(){
     while (!wifi.createTCP(HOST_NAME, HOST_PORT)) {
         Serial.print("create tcp err\r\n");
 
-        if(count++ > TIME_OUT)
+        if(count++ > 10)
           break;
     }
     Serial.print("create tcp ok\r\n");
@@ -160,7 +162,8 @@ void loopForGps(){
     getLine(buf);
     result = analyzeData(buf);
 
-    if(count++ > TIME_OUT)
+    recieveData(TIME_OUT);
+    if(count++ > 10)
       break;
   } 
   
@@ -226,6 +229,10 @@ void loopForGeomag(){
   sendData(message, 1000);
 }
 
+void loopForWifi(){
+    recieveData(TIME_OUT);
+}
+
  /***********************************************
  * utillity methods
  ***********************************************/
@@ -234,30 +241,44 @@ void loopForGeomag(){
  * TCPでデータを送信
  */
 bool sendData(String data, const int timeout){
-    Serial.println(data);
-    
-    uint8_t buffer[BUFFER_SIZE] = {0};
-    bool result = false;
-    
-    char message[BUFFER_SIZE]; 
-    
-    data.toCharArray(message,BUFFER_SIZE);
-    result = wifi.send((const uint8_t*)message, strlen(message));
-    
-//    uint32_t len = wifi.recv(buffer, sizeof(buffer), timeout);
-//    if (len > 0) {
-//        Serial.print("Received:[");
-//        for(uint32_t i = 0; i < len; i++) {
-//            Serial.print((char)buffer[i]);
-//        }
-//        Serial.print("]\r\n");
-//    }
+  Serial.println(data);
 
-   delay(500);
+  bool result = false;
+  
+  char message[BUFFER_SIZE]; 
+  
+  data.toCharArray(message,BUFFER_SIZE);
+  result = wifi.send((const uint8_t*)message, strlen(message));
+    
+   recieveData(TIME_OUT);
     
    return result;
 }
- 
+
+/*
+ * TCPでデータを送信
+ */
+void recieveData(const int timeout){
+  uint8_t buffer[BUFFER_SIZE] = {0};
+  char message[BUFFER_SIZE]; 
+  char* vibrationNum;
+  
+  uint32_t len = wifi.recv(buffer, sizeof(buffer), timeout);
+  if (len > 0) {
+    
+    for(uint32_t i = 0; i < len; i++) {
+      message[i] = (char)buffer[i];
+    }
+
+    Serial.println(message);
+    if (strncmp("VIBRATION", message, 9) == 0) {
+      strtok(message, ",");
+      vibrationNum = strtok(NULL, ","); 
+      vibrate(vibrationNum);
+    }
+  }
+}
+
 /*
  * bufにgpsから取得するデータ1行分(改行コード0x0Aまで)の文字列を格納する。 
  * ただし、最大でBUFFER_SIZEの大きさまで。
@@ -350,6 +371,22 @@ void checkValidity(char *buf){
     Serial.println(stat);
     
     isValid = (strncmp("A", stat, 1) == 0);
+  }
+}
+
+void vibrate(char* num){
+  String tmp = String(num);
+  int n = tmp.toInt();
+  Serial.print("vibrate!\nVibration ID:");
+  Serial.print(n);
+  Serial.print("\n");
+  
+  if(n >=0 && n < 8){
+    analogWrite(vibrationPins[n], 255*3.3/5);
+
+    delay(VIBRATION_TIME);
+
+    analogWrite(vibrationPins[n], 0);
   }
 }
 
