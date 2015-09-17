@@ -27,6 +27,11 @@
 #define HOST_NAME   "133.11.123.249"
 #define HOST_PORT   (7001)
 
+/* 
+ * 振動モータ用の定数
+ */
+#define VIBRATION1_PIN  2
+
 /*
  * その他定数
  */
@@ -66,7 +71,8 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  Serial.println(wifi.getIPStatus());
+  //Serial.println(wifi.getIPStatus());
+  analogWrite(VIBRATION1_PIN, 255*3.3/5);
   loopForGps();
   
   loopForGeomag();
@@ -233,13 +239,6 @@ bool sendData(String data, const int timeout){
     uint8_t buffer[BUFFER_SIZE] = {0};
     bool result = false;
     
-//    if (wifi.createTCP(HOST_NAME, HOST_PORT)) {
-//        Serial.print("create tcp ok\r\n");
-//    } else {
-//        Serial.print("create tcp err\r\n");
-//        return false;
-//    }
-    
     char message[BUFFER_SIZE]; 
     
     data.toCharArray(message,BUFFER_SIZE);
@@ -253,19 +252,7 @@ bool sendData(String data, const int timeout){
 //        }
 //        Serial.print("]\r\n");
 //    }
-    
-//    if (wifi.releaseTCP()) {
-//        Serial.print("release tcp ok\r\n");
-//    } else {
-//        Serial.print("release tcp err\r\n");
-//    }
 
-//   while(!wifi.releaseTCP()){
-//      Serial.print("release tcp err\r\n");
-//      delay(100);
-//   }
-
-//   Serial.print("release tcp ok\r\n");
    delay(500);
     
    return result;
