@@ -4,7 +4,7 @@
 #include "ESP8266.h"
 
 /***********************************************
- * definition
+ * de5finition
  ***********************************************/
 
 #define DEBUG
@@ -22,10 +22,14 @@
 /* 
  * Wifiモジュール用の定数
  */
-#define SSID        "ITC-guest"
-#define PASSWORD    "20setsuden11"
-#define HOST_NAME   "133.11.123.249"
-#define HOST_PORT   (7001)
+#define SSID        "SSID"
+#define PASSWORD    "PASSWORD"
+#define HOST_NAME   "x.x.x.x"
+#define HOST_PORT   (7005)
+/*
+ * Wifiモジュール 変数
+ */
+bool wifiConnected = false;
 
 /* 
  * 振動モータ用の定数
@@ -68,17 +72,21 @@ void setup() {
 
   setupGps();
   setupGeomag();
-  setupWifi();
+  wifiConnected = setupWifi();
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
   //Serial.println(wifi.getIPStatus());
   //analogWrite(VIBRATION1_PIN, 255*3.3/5);
-  loopForGps();
-  
-  loopForGeomag();
-  //delay(TIME_INTERVAL);  
+  if(wifiConnected){
+    loopForWifi();
+    loopForGps();
+    loopForWifi();
+    loopForGeomag();
+    loopForWifi();
+    //delay(TIME_INTERVAL);  
+  }
 }
 
 /***********************************************
@@ -92,7 +100,7 @@ void setupGps(){
   isValid = false;
 }
 
-void setupWifi(){
+bool setupWifi(){
     
     Serial.print("setup begin\r\n");
     
@@ -103,6 +111,7 @@ void setupWifi(){
         Serial.print("to station + softap ok\r\n");
     } else {
         Serial.print("to station + softap err\r\n");
+        return false;
     }
  
     if (wifi.joinAP(SSID, PASSWORD)) {
@@ -111,12 +120,14 @@ void setupWifi(){
         Serial.println( wifi.getLocalIP().c_str());       
     } else {
         Serial.print("Join AP failure\r\n");
+         return false;
     }
     
     if (wifi.disableMUX()) {
         Serial.print("single ok\r\n");
     } else {
         Serial.print("single err\r\n");
+         return false;
     }
     
     Serial.print("setup end\r\n");
@@ -126,8 +137,10 @@ void setupWifi(){
         Serial.print("create tcp err\r\n");
 
         if(count++ > 10)
-          break;
+           return false;
     }
+
+    return true;
     Serial.print("create tcp ok\r\n");
 }
 
@@ -230,7 +243,9 @@ void loopForGeomag(){
 }
 
 void loopForWifi(){
+  for (int i = 0; i < 5; i++){
     recieveData(TIME_OUT);
+  }
 }
 
  /***********************************************
@@ -259,24 +274,27 @@ bool sendData(String data, const int timeout){
  * TCPでデータを送信
  */
 void recieveData(const int timeout){
+  Serial.println("recieveData start");
   uint8_t buffer[BUFFER_SIZE] = {0};
   char message[BUFFER_SIZE]; 
   char* vibrationNum;
   
   uint32_t len = wifi.recv(buffer, sizeof(buffer), timeout);
   if (len > 0) {
-    
-    for(uint32_t i = 0; i < len; i++) {
-      message[i] = (char)buffer[i];
-    }
-
     Serial.println(message);
     if (strncmp("VIBRATION", message, 9) == 0) {
       strtok(message, ",");
       vibrationNum = strtok(NULL, ","); 
       vibrate(vibrationNum);
     }
+
+    sendData("$RESPONSE,success", TIME_OUT); 
+    for(uint32_t i = 0; i < len; i++) {
+      message[i] = (char)buffer[i];
+    }
   }
+ 
+  Serial.println("recieveData end");
 }
 
 /*
